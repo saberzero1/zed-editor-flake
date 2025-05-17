@@ -49,7 +49,7 @@ jobs:
               return
             fi
 
-            echo "Fetching latest $channel release tag..."
+            echo "Fetching latest $channel release tag..." >&2
             releases_output=$(curl -s "$releases_url")
 
             if [ "$channel" == "stable" ]; then
@@ -125,7 +125,6 @@ jobs:
           if [ "$update_needed" == "true" ] || [ "${{ github.event.inputs.force_check }}" == "true" ]; then
             echo "update_needed=true" >> $GITHUB_OUTPUT
           else
-            echo "No update needed."
             echo "update_needed=false" >> $GITHUB_OUTPUT
           fi
 

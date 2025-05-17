@@ -339,11 +339,12 @@ jobs:
             PR_BODY+="- aarch64-darwin: \`${{ steps.binary-hashes-preview.outputs.aarch64_darwin_hash_preview }}\`\n\n"
           fi
 
-          PR_BODY+="- Updated \`flake.lock\`\n\n"
+          PR_BODY+="**Flake:**\n"
+          PR_BODY+="Updated \`flake.lock\`\n\n"
           PR_BODY+="This update was created automatically by GitHub Actions."
 
           echo "pr_body<<EOF" >> $GITHUB_OUTPUT
-          echo -e "$PR_BODY" >> $GITHUB_OUTPUT # Using echo -e to interpret \n
+          echo -e "$PR_BODY" >> $GITHUB_OUTPUT
           echo "EOF" >> $GITHUB_OUTPUT
 
       - name: Create Pull Request

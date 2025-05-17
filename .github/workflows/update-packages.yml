@@ -340,7 +340,7 @@ jobs:
           fi
 
           PR_BODY+="**Flake:**\n"
-          PR_BODY+="Updated \`flake.lock\`\n\n"
+          PR_BODY+="- Updated \`flake.lock\`\n\n"
           PR_BODY+="This update was created automatically by GitHub Actions."
 
           echo "pr_body<<EOF" >> $GITHUB_OUTPUT

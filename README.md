@@ -6,21 +6,36 @@ This repository provides a Nix flake for the [Zed Editor](https://zed.dev/), a h
 
 This flake provides the following packages:
 
-- `zed-editor`: Built from source
-- `zed-editor-bin`: Pre-built binaries directly from upstream releases
-- `zed-editor-fhs`: FHS-compatible environment for the source-built version
-- `zed-editor-bin-fhs`: FHS-compatible environment for the binary version
+- `zed-editor`: Built from source version of the latest stable release
+- `zed-editor-bin`: Pre-built binaries from upstream of the latest stable release
+- `zed-editor-fhs`: FHS-compatible environment for `zed-editor`
+- `zed-editor-bin-fhs`: FHS-compatible environment for `zed-editor-bin`
+- `zed-editor-preview`: Built from source version of the latest preview release
+- `zed-editor-preview-bin`: Pre-built binaries from upstream of the latest preview release
+- `zed-editor-preview-fhs`: FHS-compatible environment for `zed-editor-preview`
+- `zed-editor-preview-bin-fhs`: FHS-compatible environment for `zed-editor-preview-bin`
 
 ## Usage
 
-### Installing with Nix Run
+### Running with Nix Run
+
+You can run the editor directly without installing it:
 
 ```sh
+# Latest stable release (built from source)
 nix run github:HPsaucii/zed-editor-flake
 
+# Latest stable release (pre-built binary)
 nix run github:HPsaucii/zed-editor-flake#zed-editor-bin
 
+# Latest stable release in an FHS environment
 nix run github:HPsaucii/zed-editor-flake#zed-editor-fhs
+
+# Latest preview release (built from source)
+nix run github:HPsaucii/zed-editor-flake#zed-editor-preview
+
+# Latest preview release (pre-built binary)
+nix run github:HPsaucii/zed-editor-flake#zed-editor-preview-bin
 ```
 
 ### Adding to Your Configuration
@@ -31,26 +46,35 @@ In your `flake.nix`:
 {
   inputs = {
     nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable";
-    zed-editor.url = "github:HPsaucii/zed-editor-flake";
+    zed-editor-flake.url = "github:HPsaucii/zed-editor-flake";
   };
-  
-  outputs = { self, nixpkgs, zed-editor, ... }:
+
+  outputs = { self, nixpkgs, zed-editor-flake, ... }:
+  let
+    # Example for a single system
+    system = "x86_64-linux"; # Or "aarch64-linux", "x86_64-darwin", "aarch64-darwin"
+    pkgs = nixpkgs.legacyPackages.${system};
+  in
   {
-    nixosConfigurations.hostname = nixpkgs.lib.nixosSystem {
+    # Example for NixOS configuration
+    nixosConfigurations.yourHostname = nixpkgs.lib.nixosSystem {
+      inherit system;
       modules = [
-        ({ pkgs, ... }: {
+        ({ config, pkgs, ... }: {
           environment.systemPackages = [
-            zed-editor.packages.${pkgs.system}.zed-editor
+            zed-editor-flake.packages.${system}.zed-editor # Or zed-editor-bin, zed-editor-preview, etc.
           ];
         })
       ];
     };
 
-    homeConfigurations.HPsaucii = home-manager.lib.homeManagerConfiguration {
+    # Example for home-manager configuration
+    homeConfigurations.yourUsername = home-manager.lib.homeManagerConfiguration {
+      inherit pkgs;
       modules = [
         {
           home.packages = [
-            zed-editor.packages.${pkgs.system}.zed-editor
+            zed-editor-flake.packages.${system}.zed-editor # Or zed-editor-bin, zed-editor-preview, etc.
           ];
         }
       ];
@@ -61,29 +85,41 @@ In your `flake.nix`:
 
 ## Automated Updates
 
-This repository uses GitHub Actions to automatically check for new Zed Editor releases and update the packages.
+This repository uses GitHub Actions to automatically check for new Zed Editor releases (both stable and preview) and update the corresponding Nix packages.
 
 ### Update Workflow
 
-The automated update workflow:
+The automated update workflow performs the following steps:
 
-1. Checks for new Zed Editor releases on a schedule (Monday and Thursday)
-2. Updates package versions in both packages
-3. Updates the source hash for `zed-editor`
-4. Updates binary hashes for `zed-editor-bin`
-5. Updates the cargoHash for `zed-editor`
-6. Updates the flake lock file
-7. Creates a pull request with all changes
+1.  **Checks for new releases:** On a schedule (Monday and Thursday at 12:00 UTC) or when manually triggered, the workflow checks the Zed Editor GitHub repository for the latest stable and preview releases.
+2.  **Updates package versions:** If new versions are found, the `version` attribute is updated in the `default.nix` files for:
+    *   `zed-editor` and `zed-editor-bin` (for stable releases)
+    *   `zed-editor-preview` and `zed-editor-preview-bin` (for preview releases)
+3.  **Updates source hashes:** The source tarball hash (`hash`) is updated for:
+    *   `zed-editor` (for stable releases)
+    *   `zed-editor-preview` (for preview releases)
+4.  **Updates binary hashes:** The pre-built binary hashes (`sha256`) for each supported system are updated for:
+    *   `zed-editor-bin` (for stable releases)
+    *   `zed-editor-preview-bin` (for preview releases)
+5.  **Updates Cargo hashes:** The `cargoHash` (for vendored dependencies) is updated for:
+    *   `zed-editor` (for stable releases)
+    *   `zed-editor-preview` (for preview releases)
+6.  **Updates flake lock file:** `nix flake update` is run to refresh the `flake.lock` file.
+7.  **Creates a pull request:** A pull request is automatically created with all the changes, detailing the versions updated and the new hashes.
 
 ### Manual Trigger
 
 You can manually trigger the update workflow through the GitHub Actions interface:
 
-1. Navigate to the "Actions" tab in your repository
-2. Select the "Update Zed Editor Packages" workflow
-3. Click "Run workflow"
-4. Optionally specify a specific version to update to
+1.  Navigate to the "Actions" tab in the repository.
+2.  Select the "Update Zed Editor Packages" workflow from the sidebar.
+3.  Click the "Run workflow" dropdown button.
+4.  Optionally, you can:
+    *   Specify a **Specific stable version to update to** (e.g., `0.180.0`).
+    *   Specify a **Specific preview version to update to** (e.g., `0.181.0-pre`).
+    *   Check **Force check for updates** to run the update process even if the latest fetched version matches the current version in the flake (useful for re-calculating hashes if a release asset was changed upstream).
+5.  Click "Run workflow".
 
 ## Contributing
 
-Contributions are welcome! Please feel free to submit a pull request.
+Contributions are welcome! If you find any issues or have suggestions for improvements, please open an issue or submit a pull request. Please feel free to submit a pull request.

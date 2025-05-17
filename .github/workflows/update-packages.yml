@@ -4,19 +4,19 @@ on:
   workflow_dispatch:
     inputs:
       force_check:
-        description: 'Force check for updates even if no new release'
+        description: "Force check for updates even if no new release"
         type: boolean
         default: false
       version:
-        description: 'Specific stable version to update to (optional)'
+        description: "Specific stable version to update to (optional)"
         required: false
         type: string
       preview_version:
-        description: 'Specific preview version to update to (optional)'
+        description: "Specific preview version to update to (optional)"
         required: false
         type: string
   schedule:
-    - cron: '0 12 * * 1,4'
+    - cron: "0 12 * * 1,4"
 
 jobs:
   update-packages:
@@ -317,7 +317,7 @@ jobs:
             PR_BODY+="Cargo hash for zed-editor: `${{ steps.cargo-hash-stable.outputs.cargo_hash_stable }}`\n"
             PR_BODY+="Binary hashes for zed-editor-bin:\n"
             PR_BODY+="- x86_64-linux: `${{ steps.binary-hashes-stable.outputs.x86_64_linux_hash_stable }}`\n"
-            PR_BODY+="- aarch64-linux: `${{ steps.binary-hashes-stable.outputs.aarch664_linux_hash_stable }}`\n" # Note the typo here, corrected below
+            PR_BODY+="- aarch64-linux: `${{ steps.binary-hashes-stable.outputs.aarch64_linux_hash_stable }}`\n"
             PR_BODY+="- x86_64-darwin: `${{ steps.binary-hashes-stable.outputs.x86_64_darwin_hash_stable }}`\n"
             PR_BODY+="- aarch64-darwin: `${{ steps.binary-hashes-stable.outputs.aarch64_darwin_hash_stable }}`\n\n"
           fi
@@ -343,12 +343,8 @@ jobs:
           PR_BODY+="- Updated \`flake.lock\`\n\n"
           PR_BODY+="This update was created automatically by GitHub Actions."
 
-          # Set the PR_BODY as a step output
-          echo "pr_body<<EOF" >> $GITHUB_OUTPUT
-          echo "$PR_BODY" >> $GITHUB_OUTPUT
-          echo "EOF" >> $GITHUB_OUTPUT
-
-
+          # Set the PR_BODY as a step output, using printf for proper multiline output
+          printf '%s\n' "$PR_BODY" >> "$GITHUB_OUTPUT"
       - name: Create Pull Request
         if: steps.check-zed-version.outputs.update_needed == 'true'
         uses: peter-evans/create-pull-request@v6

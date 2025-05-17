@@ -4,15 +4,19 @@ on:
   workflow_dispatch:
     inputs:
       force_check:
-        description: 'Force check for updates even if no new release'
+        description: "Force check for updates even if no new release"
         type: boolean
         default: false
       version:
-        description: 'Specific version to update to (optional)'
+        description: "Specific stable version to update to (optional)"
+        required: false
+        type: string
+      preview_version:
+        description: "Specific preview version to update to (optional)"
         required: false
         type: string
   schedule:
-    - cron: '0 12 * * 1,4'
+    - cron: "0 12 * * 1,4"
 
 jobs:
   update-packages:
@@ -20,7 +24,7 @@ jobs:
     permissions:
       contents: write
       pull-requests: write
-    
+
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -33,40 +37,79 @@ jobs:
       - name: Check for Zed Editor updates
         id: check-zed-version
         run: |
-          if [ -n "${{ github.event.inputs.version }}" ]; then
-            LATEST_VERSION="${{ github.event.inputs.version }}"
-            echo "Using provided version: $LATEST_VERSION"
-          else
-            echo "Checking for latest release..."
-            LATEST_VERSION=$(curl -s "https://api.github.com/repos/zed-industries/zed/releases" | \
-              grep -o '"tag_name": "v[0-9]\+\.[0-9]\+\.[0-9]\+"' | \
-              grep -v -- "-pre" | \
-              grep -v "0\.999999\.0" | \
-              grep -v "0\.9999-temporary" | \
-              head -n 1 | \
-              cut -d'"' -f4 | \
-              sed 's/^v//')
-          fi
-          
-          if [ -z "$LATEST_VERSION" ]; then
-            echo "::error::Could not determine latest version"
+          # Function to get latest version (stable or preview)
+          get_latest_version() {
+            local channel=$1
+            local version_input=$2
+            local exclude_patterns='-v -- "-pre" | grep -v "0\.999999\.0" | grep -v "0\.9999-temporary"'
+            local include_patterns=''
+
+            if [ "$channel" == "preview" ]; then
+              exclude_patterns='-v "0\.999999\.0" | grep -v "0\.9999-temporary"'
+              include_patterns='grep -- "-pre"'
+            fi
+
+            if [ -n "$version_input" ]; then
+              echo "$version_input"
+            else
+              curl -s "https://api.github.com/repos/zed-industries/zed/releases" | \
+                grep -o '"tag_name": "v[0-9]\+\.[0-9]\+\.[0-9]\+[-pre]*"' | \
+                eval "grep $exclude_patterns | $include_patterns" | \
+                head -n 1 | \
+                cut -d'"' -f4 | \
+                sed 's/^v//'
+            fi
+          }
+
+          # Get latest stable and preview versions
+          LATEST_STABLE_VERSION=$(get_latest_version "stable" "${{ github.event.inputs.version }}")
+          LATEST_PREVIEW_VERSION=$(get_latest_version "preview" "${{ github.event.inputs.preview_version }}")
+
+          if [ -z "$LATEST_STABLE_VERSION" ] && [ -z "$LATEST_PREVIEW_VERSION" ]; then
+            echo "::error::Could not determine latest versions for stable or preview"
             exit 1
           fi
-          
-          echo "Latest Zed Editor version: $LATEST_VERSION"
-          
-          CURRENT_VERSION=$(grep -oP 'version = "([0-9]+\.[0-9]+\.[0-9]+)"' packages/zed-editor/default.nix | head -1 | sed 's/version = "//;s/"//')
-          echo "Current Zed Editor version: $CURRENT_VERSION"
-          
-          if [ -z "$CURRENT_VERSION" ]; then
-            echo "::error::Could not determine current version"
-            exit 1
+
+          echo "Latest Zed Editor stable version: $LATEST_STABLE_VERSION"
+          echo "Latest Zed Editor preview version: $LATEST_PREVIEW_VERSION"
+
+          # Get current stable and preview versions
+          CURRENT_STABLE_VERSION=$(grep -oP 'version = "([0-9]+\.[0-9]+\.[0-9]+)"' packages/zed-editor/default.nix | head -1 | sed 's/version = "//;s/"//')
+          CURRENT_PREVIEW_VERSION=$(grep -oP 'version = "([0-9]+\.[0-9]+\.[0-9]+[-pre]*)"' packages/zed-editor-preview/default.nix | head -1 | sed 's/version = "//;s/"//')
+
+
+          if [ -z "$CURRENT_STABLE_VERSION" ]; then
+             echo "::error::Could not determine current stable version"
+             exit 1
           fi
-          
-          if [ "$LATEST_VERSION" != "$CURRENT_VERSION" ] || [ "${{ github.event.inputs.force_check }}" == "true" ]; then
+
+          if [ -z "$CURRENT_PREVIEW_VERSION" ]; then
+             echo "::error::Could not determine current preview version"
+             exit 1
+          fi
+
+
+          echo "Current Zed Editor stable version: $CURRENT_STABLE_VERSION"
+          echo "Current Zed Editor preview version: $CURRENT_PREVIEW_VERSION"
+
+          update_needed=false
+          if [ "$LATEST_STABLE_VERSION" != "$CURRENT_STABLE_VERSION" ]; then
+            echo "Stable update needed."
+            update_needed=true
+            echo "new_stable_version=$LATEST_STABLE_VERSION" >> $GITHUB_OUTPUT
+            echo "current_stable_version=$CURRENT_STABLE_VERSION" >> $GITHUB_OUTPUT
+          fi
+
+          if [ "$LATEST_PREVIEW_VERSION" != "$CURRENT_PREVIEW_VERSION" ]; then
+             echo "Preview update needed."
+             update_needed=true
+             echo "new_preview_version=$LATEST_PREVIEW_VERSION" >> $GITHUB_OUTPUT
+             echo "current_preview_version=$CURRENT_PREVIEW_VERSION" >> $GITHUB_OUTPUT
+          fi
+
+
+          if [ "$update_needed" == "true" ] || [ "${{ github.event.inputs.force_check }}" == "true" ]; then
             echo "update_needed=true" >> $GITHUB_OUTPUT
-            echo "new_version=$LATEST_VERSION" >> $GITHUB_OUTPUT
-            echo "current_version=$CURRENT_VERSION" >> $GITHUB_OUTPUT
           else
             echo "No update needed."
             echo "update_needed=false" >> $GITHUB_OUTPUT
@@ -75,85 +118,166 @@ jobs:
       - name: Update package versions
         if: steps.check-zed-version.outputs.update_needed == 'true'
         run: |
-          NEW_VERSION="${{ steps.check-zed-version.outputs.new_version }}"
-          echo "Updating to version $NEW_VERSION"
-          
-          sed -i "s/version = \"[0-9]\+\.[0-9]\+\.[0-9]\+\"/version = \"$NEW_VERSION\"/" packages/zed-editor/default.nix
-          sed -i "s/version = \"[0-9]\+\.[0-9]\+\.[0-9]\+\"/version = \"$NEW_VERSION\"/" packages/zed-editor-bin/default.nix
+          NEW_STABLE_VERSION="${{ steps.check-zed-version.outputs.new_stable_version }}"
+          NEW_PREVIEW_VERSION="${{ steps.check-zed-version.outputs.new_preview_version }}"
+
+          if [ -n "$NEW_STABLE_VERSION" ]; then
+             echo "Updating stable to version $NEW_STABLE_VERSION"
+             sed -i "s/version = \"[0-9]\+\.[0-9]\+\.[0-9]\+\"/version = \"$NEW_STABLE_VERSION\"/" packages/zed-editor/default.nix
+             sed -i "s/version = \"[0-9]\+\.[0-9]\+\.[0-9]\+\"/version = \"$NEW_STABLE_VERSION\"/" packages/zed-editor-bin/default.nix
+          fi
+
+          if [ -n "$NEW_PREVIEW_VERSION" ]; then
+             echo "Updating preview to version $NEW_PREVIEW_VERSION"
+             sed -i "s/version = \"[0-9]\+\.[0-9]\+\.[0-9]\+[-pre]*\"/version = \"$NEW_PREVIEW_VERSION\"/" packages/zed-editor-preview/default.nix
+             sed -i "s/version = \"[0-9]\+\.[0-9]\+\.[0-9]\+[-pre]*\"/version = \"$NEW_PREVIEW_VERSION\"/" packages/zed-editor-preview-bin/default.nix
+          fi
 
       - name: Update source hash for zed-editor
-        if: steps.check-zed-version.outputs.update_needed == 'true'
-        id: source-hash
+        if: steps.check-zed-version.outputs.update_needed == 'true' && steps.check-zed-version.outputs.new_stable_version != ''
+        id: source-hash-stable
         run: |
-          NEW_VERSION="${{ steps.check-zed-version.outputs.new_version }}"
+          NEW_VERSION="${{ steps.check-zed-version.outputs.new_stable_version }}"
           SOURCE_URL="https://github.com/zed-industries/zed/archive/refs/tags/v${NEW_VERSION}.tar.gz"
           echo "Fetching source hash from $SOURCE_URL"
-          
+
           SOURCE_HASH=$(nix-prefetch-url --unpack "$SOURCE_URL" 2>/dev/null || echo "")
           if [ -n "$SOURCE_HASH" ]; then
             SOURCE_HASH_BASE64=$(nix hash to-base64 --type sha256 "$SOURCE_HASH")
-            echo "source_hash=sha256-$SOURCE_HASH_BASE64" >> $GITHUB_OUTPUT
-            echo "Source hash: sha256-$SOURCE_HASH_BASE64"
+            echo "source_hash_stable=sha256-$SOURCE_HASH_BASE64" >> $GITHUB_OUTPUT
+            echo "Source hash (stable): sha256-$SOURCE_HASH_BASE64"
             sed -i "s|hash = \"sha256-[^\"]*\"|hash = \"sha256-$SOURCE_HASH_BASE64\"|" packages/zed-editor/default.nix
             echo "Updated source hash in packages/zed-editor/default.nix"
           else
-            echo "::warning::Failed to fetch source hash"
+            echo "::warning::Failed to fetch source hash for stable"
+          fi
+
+      - name: Update source hash for zed-editor-preview
+        if: steps.check-zed-version.outputs.update_needed == 'true' && steps.check-zed-version.outputs.new_preview_version != ''
+        id: source-hash-preview
+        run: |
+          NEW_VERSION="${{ steps.check-zed-version.outputs.new_preview_version }}"
+          SOURCE_URL="https://github.com/zed-industries/zed/archive/refs/tags/v${NEW_VERSION}.tar.gz"
+          echo "Fetching source hash from $SOURCE_URL"
+
+          SOURCE_HASH=$(nix-prefetch-url --unpack "$SOURCE_URL" 2>/dev/null || echo "")
+          if [ -n "$SOURCE_HASH" ]; then
+            SOURCE_HASH_BASE64=$(nix hash to-base64 --type sha256 "$SOURCE_HASH")
+            echo "source_hash_preview=sha256-$SOURCE_HASH_BASE64" >> $GITHUB_OUTPUT
+            echo "Source hash (preview): sha256-$SOURCE_HASH_BASE64"
+            sed -i "s|hash = \"sha256-[^\"]*\"|hash = \"sha256-$SOURCE_HASH_BASE64\"|" packages/zed-editor-preview/default.nix
+            echo "Updated source hash in packages/zed-editor-preview/default.nix"
+          else
+            echo "::warning::Failed to fetch source hash for preview"
           fi
 
       - name: Update binary hashes for zed-editor-bin
-        if: steps.check-zed-version.outputs.update_needed == 'true'
-        id: binary-hashes
+        if: steps.check-zed-version.outputs.update_needed == 'true' && steps.check-zed-version.outputs.new_stable_version != ''
+        id: binary-hashes-stable
         run: |
-          NEW_VERSION="${{ steps.check-zed-version.outputs.new_version }}"
-          
+          NEW_VERSION="${{ steps.check-zed-version.outputs.new_stable_version }}"
+
           update_hash() {
             local system=$1
             local url="https://github.com/zed-industries/zed/releases/download/v${NEW_VERSION}/$2"
             local hash_var="$3"
-            
+
             echo "Fetching hash for $system from $url"
             local hash=$(nix-prefetch-url "$url" 2>/dev/null || echo "")
-            
+
             if [ -n "$hash" ]; then
               local hash_base64=$(nix hash to-base64 --type sha256 "$hash")
               echo "$hash_var=sha256-$hash_base64" >> $GITHUB_OUTPUT
-              echo "$system hash: sha256-$hash_base64"
-              
+              echo "$system hash (stable): sha256-$hash_base64"
+
               sed -i "/\"$system\" = {/,/};/ s|sha256 = \"[^\"]*\"|sha256 = \"sha256-$hash_base64\"|" packages/zed-editor-bin/default.nix
               echo "Updated hash for $system in packages/zed-editor-bin/default.nix"
             else
-              echo "::warning::Failed to fetch hash for $system"
+              echo "::warning::Failed to fetch hash for $system (stable)"
             fi
           }
-          
-          update_hash "x86_64-linux" "zed-linux-x86_64.tar.gz" "x86_64_linux_hash"
-          update_hash "aarch64-linux" "zed-linux-aarch64.tar.gz" "aarch64_linux_hash"
-          update_hash "x86_64-darwin" "Zed-x86_64.dmg" "x86_64_darwin_hash"
-          update_hash "aarch64-darwin" "Zed-aarch64.dmg" "aarch64_darwin_hash"
 
-      - name: Get cargoHash by building with a dummy hash
-        if: steps.check-zed-version.outputs.update_needed == 'true'
-        id: cargo-hash
+          update_hash "x86_64-linux" "zed-linux-x86_64.tar.gz" "x86_64_linux_hash_stable"
+          update_hash "aarch64-linux" "zed-linux-aarch64.tar.gz" "aarch64_linux_hash_stable"
+          update_hash "x86_64-darwin" "Zed-x86_64.dmg" "x86_64_darwin_hash_stable"
+          update_hash "aarch64-darwin" "Zed-aarch64.dmg" "aarch64_darwin_hash_stable"
+
+      - name: Update binary hashes for zed-editor-preview-bin
+        if: steps.check-zed-version.outputs.update_needed == 'true' && steps.check-zed-version.outputs.new_preview_version != ''
+        id: binary-hashes-preview
+        run: |
+          NEW_VERSION="${{ steps.check-zed-version.outputs.new_preview_version }}"
+
+          update_hash() {
+            local system=$1
+            local url="https://github.com/zed-industries/zed/releases/download/v${NEW_VERSION}/$2"
+            local hash_var="$3"
+
+            echo "Fetching hash for $system from $url"
+            local hash=$(nix-prefetch-url "$url" 2>/dev/null || echo "")
+
+            if [ -n "$hash" ]; then
+              local hash_base64=$(nix hash to-base64 --type sha256 "$hash")
+              echo "$hash_var=sha256-$hash_base64" >> $GITHUB_OUTPUT
+              echo "$system hash (preview): sha256-$hash_base64"
+
+              sed -i "/\"$system\" = {/,/};/ s|sha256 = \"[^\"]*\"|sha256 = \"sha256-$hash_base64\"|" packages/zed-editor-preview-bin/default.nix
+              echo "Updated hash for $system in packages/zed-editor-preview-bin/default.nix"
+            else
+              echo "::warning::Failed to fetch hash for $system (preview)"
+            fi
+          }
+
+          update_hash "x86_64-linux" "zed-linux-x86_64.tar.gz" "x86_64_linux_hash_preview"
+          update_hash "aarch64-linux" "zed-linux-aarch64.tar.gz" "aarch64_linux_hash_preview"
+          update_hash "x86_64-darwin" "Zed-x86_64.dmg" "x86_64_darwin_hash_preview"
+          update_hash "aarch64-darwin" "Zed-aarch64.dmg" "aarch64_darwin_hash_preview"
+
+      - name: Get cargoHash for zed-editor
+        if: steps.check-zed-version.outputs.update_needed == 'true' && steps.check-zed-version.outputs.new_stable_version != ''
+        id: cargo-hash-stable
         run: |
           sed -i 's|cargoHash = "sha256-[^"]*"|cargoHash = "sha256-AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA="|' packages/zed-editor/default.nix
-          
+
           echo "Attempting to build zed-editor to get cargoHash..."
           BUILD_OUTPUT=$(nix --extra-experimental-features flakes build .#zed-editor 2>&1 || true)
-          
+
           CARGO_HASH=$(echo "$BUILD_OUTPUT" | grep 'hash mismatch in fixed-output derivation' -A 2 | grep 'got:' | head -1 | awk '{print $2}')
-          
+
           if [ -n "$CARGO_HASH" ]; then
-            echo "Calculated cargoHash: $CARGO_HASH"
-            echo "cargo_hash=$CARGO_HASH" >> $GITHUB_OUTPUT
-            
+            echo "Calculated cargoHash (stable): $CARGO_HASH"
+            echo "cargo_hash_stable=$CARGO_HASH" >> $GITHUB_OUTPUT
+
             sed -i "s|cargoHash = \"sha256-AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=\"|cargoHash = \"$CARGO_HASH\"|" packages/zed-editor/default.nix
             echo "Updated cargoHash in packages/zed-editor/default.nix"
           else
-            echo "::error::Could not extract cargoHash from build output. Check the build output for details."
+            echo "::error::Could not extract cargoHash for stable from build output. Check the build output for details."
             sed -i 's|cargoHash = "sha256-AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA="||' packages/zed-editor/default.nix
             exit 1
           fi
 
+      - name: Get cargoHash for zed-editor-preview
+        if: steps.check-zed-version.outputs.update_needed == 'true' && steps.check-zed-version.outputs.new_preview_version != ''
+        id: cargo-hash-preview
+        run: |
+          sed -i 's|cargoHash = "sha256-[^"]*"|cargoHash = "sha256-AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA="|' packages/zed-editor-preview/default.nix
+
+          echo "Attempting to build zed-editor-preview to get cargoHash..."
+          BUILD_OUTPUT=$(nix --extra-experimental-features flakes build .#zed-editor-preview 2>&1 || true)
+
+          CARGO_HASH=$(echo "$BUILD_OUTPUT" | grep 'hash mismatch in fixed-output derivation' -A 2 | grep 'got:' | head -1 | awk '{print $2}')
+
+          if [ -n "$CARGO_HASH" ]; then
+            echo "Calculated cargoHash (preview): $CARGO_HASH"
+            echo "cargo_hash_preview=$CARGO_HASH" >> $GITHUB_OUTPUT
+
+            sed -i "s|cargoHash = \"sha256-AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=\"|cargoHash = \"$CARGO_HASH\"|" packages/zed-editor-preview/default.nix
+            echo "Updated cargoHash in packages/zed-editor-preview/default.nix"
+          else
+            echo "::warning::Could not extract cargoHash for preview from build output. Check the build output for details."
+            sed -i 's|cargoHash = "sha256-AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA="||' packages/zed-editor-preview/default.nix
+            exit 1
+          fi
 
       - name: Update flake.lock
         if: steps.check-zed-version.outputs.update_needed == 'true'
@@ -164,29 +288,53 @@ jobs:
         if: steps.check-zed-version.outputs.update_needed == 'true'
         uses: peter-evans/create-pull-request@v6
         with:
-          commit-message: "chore: update Zed Editor to ${{ steps.check-zed-version.outputs.new_version }}"
-          branch: update-zed-editor
+          commit-message: "chore: update Zed Editor packages"
+          branch: update-zed-editor-packages
           delete-branch: true
-          title: "Update Zed Editor to ${{ steps.check-zed-version.outputs.new_version }}"
+          title: "Update Zed Editor packages"
           body: |
-            This PR updates Zed Editor packages from `${{ steps.check-zed-version.outputs.current_version }}` to `${{ steps.check-zed-version.outputs.new_version }}`.
-            
+            This PR updates Zed Editor packages.
+
+            {% if steps.check-zed-version.outputs.new_stable_version %}
+            **Stable Channel:**
+            Updated from `${{ steps.check-zed-version.outputs.current_stable_version }}` to `${{ steps.check-zed-version.outputs.new_stable_version }}`.
+
             Changes:
             - Updated package versions in both `zed-editor` and `zed-editor-bin`
             - Updated source hash in `zed-editor`
             - Updated cargo hash in `zed-editor`
             - Updated binary hashes in `zed-editor-bin`
-            - Updated `flake.lock`
-            
-            ### Automatic Hash Updates
-            
-            Source hash for zed-editor: `${{ steps.source-hash.outputs.source_hash }}`
-            Cargo hash for zed-editor: `${{ steps.cargo-hash.outputs.cargo_hash }}`
-            
+
+            Automatic Hash Updates (Stable):
+            Source hash for zed-editor: `${{ steps.source-hash-stable.outputs.source_hash_stable }}`
+            Cargo hash for zed-editor: `${{ steps.cargo-hash-stable.outputs.cargo_hash_stable }}`
             Binary hashes for zed-editor-bin:
-            - x86_64-linux: `${{ steps.binary-hashes.outputs.x86_64_linux_hash }}`
-            - aarch64-linux: `${{ steps.binary-hashes.outputs.aarch64_linux_hash }}`
-            - x86_64-darwin: `${{ steps.binary-hashes.outputs.x86_64_darwin_hash }}`
-            - aarch64-darwin: `${{ steps.binary-hashes.outputs.aarch64_darwin_hash }}`
-            
+            - x86_64-linux: `${{ steps.binary-hashes-stable.outputs.x86_64_linux_hash_stable }}`
+            - aarch64-linux: `${{ steps.binary-hashes-stable.outputs.aarch64_linux_hash_stable }}`
+            - x86_64-darwin: `${{ steps.binary-hashes-stable.outputs.x86_64_darwin_hash_stable }}`
+            - aarch64-darwin: `${{ steps.binary-hashes-stable.outputs.aarch64_darwin_hash_stable }}`
+            {% endif %}
+
+            {% if steps.check-zed-version.outputs.new_preview_version %}
+            **Preview Channel:**
+            Updated from `${{ steps.check-zed-version.outputs.current_preview_version }}` to `${{ steps.check-zed-version.outputs.new_preview_version }}`.
+
+            Changes:
+            - Updated package versions in both `zed-editor-preview` and `zed-editor-preview-bin`
+            - Updated source hash in `zed-editor-preview`
+            - Updated cargo hash in `zed-editor-preview`
+            - Updated binary hashes in `zed-editor-preview-bin`
+
+            Automatic Hash Updates (Preview):
+            Source hash for zed-editor-preview: `${{ steps.source-hash-preview.outputs.source_hash_preview }}`
+            Cargo hash for zed-editor-preview: `${{ steps.cargo-hash-preview.outputs.cargo_hash_preview }}`
+            Binary hashes for zed-editor-preview-bin:
+            - x86_64-linux: `${{ steps.binary-hashes-preview.outputs.x86_64_linux_hash_preview }}`
+            - aarch64-linux: `${{ steps.binary-hashes-preview.outputs.aarch64_linux_hash_preview }}`
+            - x86_64-darwin: `${{ steps.binary-hashes-preview.outputs.x86_64_darwin_hash_preview }}`
+            - aarch64-darwin: `${{ steps.binary-hashes-preview.outputs.aarch64_darwin_hash_preview }}`
+            {% endif %}
+
+            - Updated `flake.lock`
+
             This update was created automatically by GitHub Actions.

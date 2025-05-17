@@ -41,24 +41,38 @@ jobs:
           get_latest_version() {
             local channel=$1
             local version_input=$2
-            local exclude_patterns='-v -- "-pre" | grep -v "0\.999999\.0" | grep -v "0\.9999-temporary"'
-            local include_patterns=''
-
-            if [ "$channel" == "preview" ]; then
-              exclude_patterns='-v "0\.999999\.0" | grep -v "0\.9999-temporary"'
-              include_patterns='grep -- "-pre"'
-            fi
+            local releases_url="https://api.github.com/repos/zed-industries/zed/releases"
+            local version=""
 
             if [ -n "$version_input" ]; then
               echo "$version_input"
-            else
-              curl -s "https://api.github.com/repos/zed-industries/zed/releases" | \
-                grep -o '"tag_name": "v[0-9]\+\.[0-9]\+\.[0-9]\+[-pre]*"' | \
-                eval "grep $exclude_patterns | $include_patterns" | \
+              return
+            fi
+
+            echo "Fetching latest $channel release tag..."
+            releases_output=$(curl -s "$releases_url")
+
+            if [ "$channel" == "stable" ]; then
+              version=$(echo "$releases_output" | \
+                grep -o '"tag_name": "v[0-9]\+\.[0-9]\+\.[0-9]\+"' | \
+                grep -v -- "-pre" | \
+                grep -v "0\.999999\.0" | \
+                grep -v "0\.9999-temporary" | \
                 head -n 1 | \
                 cut -d'"' -f4 | \
-                sed 's/^v//'
+                sed 's/^v//')
+            elif [ "$channel" == "preview" ]; then
+              version=$(echo "$releases_output" | \
+                grep -o '"tag_name": "v[0-9]\+\.[0-9]\+\.[0-9]\+[-pre]*"' | \
+                grep -- "-pre" | \
+                grep -v "0\.999999\.0" | \
+                grep -v "0\.9999-temporary" | \
+                head -n 1 | \
+                cut -d'"' -f4 | \
+                sed 's/^v//')
             fi
+
+            echo "$version"
           }
 
           # Get latest stable and preview versions

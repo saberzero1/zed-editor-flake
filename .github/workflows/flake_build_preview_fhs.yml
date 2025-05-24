@@ -1,4 +1,4 @@
-name: flake_build_preview
+name: flake_build_preview_fhs
 
 on:
   push:

@@ -353,7 +353,7 @@ jobs:
         with:
           commit-message: "chore: update Zed Editor packages"
           token: ${{ secrets.REPO_ACCESS_TOKEN }} # Use your PAT secret directly
-          committer: github-actions[bot] <noreply@github.com>
+          committer: "Github Actions <${{ steps.import-gpg.outputs.email }}>"
           author: github-actions[bot] <noreply@github.com>
           branch: update-zed-editor-packages
           delete-branch: true

@@ -364,21 +364,20 @@ jobs:
 
       - name: Create Pull Request
         if: steps.check-zed-version.outputs.update_needed == 'true'
+        id: create_pr
         uses: peter-evans/create-pull-request@v6
         with:
+          token: ${{ steps.generate_token.outputs.token }}
           commit-message: "chore: update Zed Editor packages"
-          pull-request-token: ${{ steps.generate_token.outputs.token }}
-          github-token: ${{ steps.generate_token.outputs.token }}
           branch: update-zed-editor-packages
-          pull-request-author: "flakebuilderapp[bot] <flakebuilderapp[bot]@users.noreply.github.com>"
           delete-branch: true
           title: "Update Zed Editor packages"
           body: ${{ steps.pr-body.outputs.pr_body }} # Use the generated body
 
       - name: Set the PR to automerge
-        if: ${{ steps.create_pr.outputs.pull-request-operation == 'created' }}
+        if: steps.create_pr.outputs.pull-request-operation == 'created'
         uses: peter-evans/enable-pull-request-automerge@v3
         with:
-          token: ${{ secrets.REPO_ACCESS_TOKEN }}
+          token: ${{ secrets.REPO_ACCESS_TOKEN }} # This should be a token with permissions to manage PRs and enable automerge
           pull-request-number: ${{ steps.create_pr.outputs.pull-request-number }}
           merge-method: "squash"

@@ -370,8 +370,10 @@ jobs:
           token: ${{ steps.generate_token.outputs.token }}
           commit-message: "chore: update Zed Editor packages"
           author: "flakebuilderapp[bot] <flakebuilderapp[bot]@users.noreply.github.com>"
+          committer: "flakebuilderapp[bot] <flakebuilderapp[bot]@users.noreply.github.com>"
           branch: update-zed-editor-packages
           delete-branch: true
+          labels: automated, zed-update
           title: "Update Zed Editor packages"
           body: ${{ steps.pr-body.outputs.pr_body }} # Use the generated body
 

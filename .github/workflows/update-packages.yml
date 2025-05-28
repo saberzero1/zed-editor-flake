@@ -369,6 +369,7 @@ jobs:
         with:
           token: ${{ steps.generate_token.outputs.token }}
           commit-message: "chore: update Zed Editor packages"
+          author: "flakebuilderapp[bot] <flakebuilderapp[bot]@users.noreply.github.com>"
           branch: update-zed-editor-packages
           delete-branch: true
           title: "Update Zed Editor packages"

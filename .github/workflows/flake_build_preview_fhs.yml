@@ -40,4 +40,5 @@ jobs:
         run: nix flake check
 
       - name: Build zed-editor-preview-fhs
+        id: build-zed-editor-preview-fhs
         run: nix build .#zed-editor-preview-fhs

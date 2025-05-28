@@ -347,15 +347,38 @@ jobs:
           echo -e "$PR_BODY" >> $GITHUB_OUTPUT
           echo "EOF" >> $GITHUB_OUTPUT
 
+      # Generate a GitHub App token for creating the PR
+      - name: Generate App Token
+        id: generate_token
+        uses: peter-murray/workflow-application-token-action@v2
+        with:
+          application_id: ${{ secrets.APP_ID }}
+          application_private_key: ${{ secrets.APP_PRIVATE_KEY }}
+
+      # Configure Git for FlakeBuilderApp
+      - name: Configure Git for FlakeBuilderApp
+        run: |
+          git config --global user.email "flakebuilderapp[bot]@users.noreply.github.com"
+          git config --global user.name "flakebuilderapp[bot]"
+          echo "Git user configured: $(git config --global user.name) <$(git config --global user.email)>"
+
       - name: Create Pull Request
         if: steps.check-zed-version.outputs.update_needed == 'true'
         uses: peter-evans/create-pull-request@v6
         with:
           commit-message: "chore: update Zed Editor packages"
-          token: ${{ secrets.REPO_ACCESS_TOKEN }} # Use your PAT secret directly
-          committer: github-actions[bot] <noreply@github.com>
-          author: github-actions[bot] <noreply@github.com>
+          pull-request-token: ${{ steps.generate_token.outputs.token }}
+          github-token: ${{ steps.generate_token.outputs.token }}
           branch: update-zed-editor-packages
+          pull-request-author: "flakebuilderapp[bot] <flakebuilderapp[bot]@users.noreply.github.com>"
           delete-branch: true
           title: "Update Zed Editor packages"
           body: ${{ steps.pr-body.outputs.pr_body }} # Use the generated body
+
+      - name: Set the PR to automerge
+        if: ${{ steps.create_pr.outputs.pull-request-operation == 'created' }}
+        uses: peter-evans/enable-pull-request-automerge@v3
+        with:
+          token: ${{ secrets.REPO_ACCESS_TOKEN }}
+          pull-request-number: ${{ steps.create_pr.outputs.pull-request-number }}
+          merge-method: "squash"

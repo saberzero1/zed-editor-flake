@@ -2,7 +2,7 @@
   description = "A flake providing an up-to-date package for zed-editor";
   inputs = {
     nixpkgs.url = "github:nixos/nixpkgs/nixpkgs-unstable";
-    patched-nixpkgs.url = "github:TomaSajt/nixpkgs?ref=fetch-cargo-vendor-dup";
+    # patched-nixpkgs.url = "github:TomaSajt/nixpkgs?ref=fetch-cargo-vendor-dup";
     flake-parts.url = "github:hercules-ci/flake-parts";
     rust-overlay = {
       url = "github:oxalica/rust-overlay";
@@ -12,7 +12,7 @@
   outputs =
     inputs @ { flake-parts
     , nixpkgs
-    , patched-nixpkgs
+      #, patched-nixpkgs
     , rust-overlay
     , ...
     }:
@@ -39,7 +39,7 @@
           in
           {
             packages = {
-              zed-editor = pkgs.callPackage ./packages/zed-editor { 
+              zed-editor = pkgs.callPackage ./packages/zed-editor {
                 # Use latest stable rust
                 rustPlatform = pkgs.makeRustPlatform {
                   cargo = pkgs.rust-bin.stable.latest.default;
@@ -47,7 +47,7 @@
                 };
               };
               zed-editor-fhs = self'.packages.zed-editor.passthru.fhs;
-              zed-editor-preview = pkgs.callPackage ./packages/zed-editor-preview { 
+              zed-editor-preview = pkgs.callPackage ./packages/zed-editor-preview {
                 # Use latest stable rust
                 rustPlatform = pkgs.makeRustPlatform {
                   cargo = pkgs.rust-bin.stable.latest.default;

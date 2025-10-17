@@ -1,5 +1,7 @@
 # Zed Editor Flake
 
+[![flake_build_stable](https://github.com/saberzero1/zed-editor-flake/actions/workflows/flake_build_stable.yml/badge.svg)](https://github.com/saberzero1/zed-editor-flake/actions/workflows/flake_build_stable.yml) | [![flake_build_preview_fhs](https://github.com/saberzero1/zed-editor-flake/actions/workflows/flake_build_preview_fhs.yml/badge.svg)](https://github.com/saberzero1/zed-editor-flake/actions/workflows/flake_build_preview_fhs.yml) | [![flake_build_preview](https://github.com/saberzero1/zed-editor-flake/actions/workflows/flake_build_preview.yml/badge.svg)](https://github.com/saberzero1/zed-editor-flake/actions/workflows/flake_build_preview.yml)
+
 This repository provides a Nix flake for the [Zed Editor](https://zed.dev/), a high-performance, multiplayer code editor from the creators of Atom and Tree-sitter.
 
 ## Available Packages
@@ -93,17 +95,17 @@ The automated update workflow performs the following steps:
 
 1.  **Checks for new releases:** On a schedule (Monday and Thursday at 12:00 UTC) or when manually triggered, the workflow checks the Zed Editor GitHub repository for the latest stable and preview releases.
 2.  **Updates package versions:** If new versions are found, the `version` attribute is updated in the `default.nix` files for:
-    *   `zed-editor` and `zed-editor-bin` (for stable releases)
-    *   `zed-editor-preview` and `zed-editor-preview-bin` (for preview releases)
+    - `zed-editor` and `zed-editor-bin` (for stable releases)
+    - `zed-editor-preview` and `zed-editor-preview-bin` (for preview releases)
 3.  **Updates source hashes:** The source tarball hash (`hash`) is updated for:
-    *   `zed-editor` (for stable releases)
-    *   `zed-editor-preview` (for preview releases)
+    - `zed-editor` (for stable releases)
+    - `zed-editor-preview` (for preview releases)
 4.  **Updates binary hashes:** The pre-built binary hashes (`sha256`) for each supported system are updated for:
-    *   `zed-editor-bin` (for stable releases)
-    *   `zed-editor-preview-bin` (for preview releases)
+    - `zed-editor-bin` (for stable releases)
+    - `zed-editor-preview-bin` (for preview releases)
 5.  **Updates Cargo hashes:** The `cargoHash` (for vendored dependencies) is updated for:
-    *   `zed-editor` (for stable releases)
-    *   `zed-editor-preview` (for preview releases)
+    - `zed-editor` (for stable releases)
+    - `zed-editor-preview` (for preview releases)
 6.  **Updates flake lock file:** `nix flake update` is run to refresh the `flake.lock` file.
 7.  **Creates a pull request:** A pull request is automatically created with all the changes, detailing the versions updated and the new hashes.
 
@@ -115,9 +117,9 @@ You can manually trigger the update workflow through the GitHub Actions interfac
 2.  Select the "Update Zed Editor Packages" workflow from the sidebar.
 3.  Click the "Run workflow" dropdown button.
 4.  Optionally, you can:
-    *   Specify a **Specific stable version to update to** (e.g., `0.180.0`).
-    *   Specify a **Specific preview version to update to** (e.g., `0.181.0-pre`).
-    *   Check **Force check for updates** to run the update process even if the latest fetched version matches the current version in the flake (useful for re-calculating hashes if a release asset was changed upstream).
+    - Specify a **Specific stable version to update to** (e.g., `0.180.0`).
+    - Specify a **Specific preview version to update to** (e.g., `0.181.0-pre`).
+    - Check **Force check for updates** to run the update process even if the latest fetched version matches the current version in the flake (useful for re-calculating hashes if a release asset was changed upstream).
 5.  Click "Run workflow".
 
 ## Contributing

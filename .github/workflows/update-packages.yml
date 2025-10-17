@@ -371,7 +371,7 @@ jobs:
           git add .
           git commit -m 'chore: update Zed Editor packages'
           git status
-          git push
+          git push --set-upstream origin update-zed-editor-packages
           git pull
           git status
           gh pr create --base main --head update-zed-editor-packages --title 'Update Zed Editor packages' --body '${{ steps.pr-body.outputs.pr_body }}'

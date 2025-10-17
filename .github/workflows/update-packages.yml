@@ -170,7 +170,7 @@ jobs:
 
           SOURCE_HASH=$(nix-prefetch-url --unpack "$SOURCE_URL" 2>/dev/null || echo "")
           if [ -n "$SOURCE_HASH" ]; then
-            SOURCE_HASH_BASE64=$(nix hash to-base64 --type sha256 "$SOURCE_HASH")
+            SOURCE_HASH_BASE64=$(nix hash convert --to base64 --hash-algo sha256 "$SOURCE_HASH")
             echo "source_hash_stable=sha256-$SOURCE_HASH_BASE64" >> $GITHUB_OUTPUT
             echo "Source hash (stable): sha256-$SOURCE_HASH_BASE64"
             sed -i "s|hash = \"sha256-[^\"]*\"|hash = \"sha256-$SOURCE_HASH_BASE64\"|" packages/zed-editor/default.nix
@@ -189,7 +189,7 @@ jobs:
 
           SOURCE_HASH=$(nix-prefetch-url --unpack "$SOURCE_URL" 2>/dev/null || echo "")
           if [ -n "$SOURCE_HASH" ]; then
-            SOURCE_HASH_BASE64=$(nix hash to-base64 --type sha256 "$SOURCE_HASH")
+            SOURCE_HASH_BASE64=$(nix hash convert --to base64 --hash-algo sha256 "$SOURCE_HASH")
             echo "source_hash_preview=sha256-$SOURCE_HASH_BASE64" >> $GITHUB_OUTPUT
             echo "Source hash (preview): sha256-$SOURCE_HASH_BASE64"
             sed -i "s|hash = \"sha256-[^\"]*\"|hash = \"sha256-$SOURCE_HASH_BASE64\"|" packages/zed-editor-preview/default.nix
@@ -213,7 +213,7 @@ jobs:
             local hash=$(nix-prefetch-url "$url" 2>/dev/null || echo "")
 
             if [ -n "$hash" ]; then
-              local hash_base64=$(nix hash to-base64 --type sha256 "$hash")
+              local hash_base64=$(nix hash convert --to base64 --hash-algo sha256 "$hash")
               echo "$hash_var=sha256-$hash_base64" >> $GITHUB_OUTPUT
               echo "$system hash (stable): sha256-$hash_base64"
 
@@ -244,7 +244,7 @@ jobs:
             local hash=$(nix-prefetch-url "$url" 2>/dev/null || echo "")
 
             if [ -n "$hash" ]; then
-              local hash_base64=$(nix hash to-base64 --type sha256 "$hash")
+              local hash_base64=$(nix hash convert --to base64 --hash-algo sha256 "$hash")
               echo "$hash_var=sha256-$hash_base64" >> $GITHUB_OUTPUT
               echo "$system hash (preview): sha256-$hash_base64"
 

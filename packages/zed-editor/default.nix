@@ -118,11 +118,11 @@ rustPlatform.buildRustPackage (finalAttrs: {
     # Upstream delegates linking on Linux to clang to make use of mold,
     # but builds fine with our standard linker.
     # This patch removes their linker override from the cargo config.
-    ./0001-linux-linker.patch
+    # ./0001-linux-linker.patch
   ];
 
   cargoPatches = [
-    ./0002-fix-duplicate-reqwest.patch
+    # ./0002-fix-duplicate-reqwest.patch
   ];
 
   postPatch =

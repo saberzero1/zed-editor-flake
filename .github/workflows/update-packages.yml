@@ -267,9 +267,9 @@ jobs:
           sed -i 's|cargoHash = "sha256-[^"]*"|cargoHash = "sha256-AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA="|' packages/zed-editor/default.nix
 
           echo "Attempting to build zed-editor to get cargoHash..."
-          BUILD_OUTPUT=$(nix --extra-experimental-features flakes build .#zed-editor 2>&1 || true)
+          # BUILD_OUTPUT=$(nix --extra-experimental-features flakes build .#zed-editor 2>&1 || true)
 
-          CARGO_HASH=$(echo "$BUILD_OUTPUT" | grep 'hash mismatch in fixed-output derivation' -A 2 | grep 'got:' | head -1 | awk '{print $2}')
+          CARGO_HASH=$(echo "$(nix --extra-experimental-features flakes build .#zed-editor 2>&1 || true)" | grep 'hash mismatch in fixed-output derivation' -A 2 | grep 'got:' | head -1 | awk '{print $2}')
 
           if [ -n "$CARGO_HASH" ]; then
             echo "Calculated cargoHash (stable): $CARGO_HASH"
@@ -290,9 +290,9 @@ jobs:
           sed -i 's|cargoHash = "sha256-[^"]*"|cargoHash = "sha256-AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA="|' packages/zed-editor-preview/default.nix
 
           echo "Attempting to build zed-editor-preview to get cargoHash..."
-          BUILD_OUTPUT=$(nix --extra-experimental-features flakes build .#zed-editor-preview 2>&1 || true)
+          # BUILD_OUTPUT=$(nix --extra-experimental-features flakes build .#zed-editor-preview 2>&1 || true)
 
-          CARGO_HASH=$(echo "$BUILD_OUTPUT" | grep 'hash mismatch in fixed-output derivation' -A 2 | grep 'got:' | head -1 | awk '{print $2}')
+          CARGO_HASH=$(echo "$(nix --extra-experimental-features flakes build .#zed-editor-preview 2>&1 || true)" | grep 'hash mismatch in fixed-output derivation' -A 2 | grep 'got:' | head -1 | awk '{print $2}')
 
           if [ -n "$CARGO_HASH" ]; then
             echo "Calculated cargoHash (preview): $CARGO_HASH"

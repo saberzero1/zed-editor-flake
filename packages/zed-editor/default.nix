@@ -122,7 +122,7 @@ rustPlatform.buildRustPackage (finalAttrs: {
   ];
 
   cargoPatches = [
-    ./0002-fix-duplicate-reqwest.patch
+    # ./0002-fix-duplicate-reqwest.patch
   ];
 
   postPatch =

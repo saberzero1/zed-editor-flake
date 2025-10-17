@@ -269,6 +269,8 @@ jobs:
         run: |
           sed -i 's|cargoHash = "sha256-[^"]*"|cargoHash = "sha256-AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA="|' packages/zed-editor/default.nix
 
+          nix --extra-experimental-features flakes build .#zed-editor 2>&1
+
           echo "Attempting to build zed-editor to get cargoHash..."
           # BUILD_OUTPUT=$(nix --extra-experimental-features flakes build .#zed-editor 2>&1 || true)
 

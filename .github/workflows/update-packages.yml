@@ -29,6 +29,13 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
+      - name: Configure Git
+        run: |
+          git config --global user.email "flake[bot]@users.noreply.github.com"
+          git config --global user.name "flake[bot]"
+          echo "Git user configured: $(git config --global user.name) <$(git config --global user.email)>"
+          git switch -c "update-zed-editor-packages"
+
       - name: Install Nix
         uses: cachix/install-nix-action@v25
         with:
@@ -347,40 +354,12 @@ jobs:
           echo -e "$PR_BODY" >> $GITHUB_OUTPUT
           echo "EOF" >> $GITHUB_OUTPUT
 
-      # Generate a GitHub App token for creating the PR
-      - name: Generate App Token
-        id: generate_token
-        uses: peter-murray/workflow-application-token-action@v2
-        with:
-          application_id: ${{ secrets.APP_ID }}
-          application_private_key: ${{ secrets.APP_PRIVATE_KEY }}
-
-      # Configure Git for FlakeBuilderApp
-      - name: Configure Git for FlakeBuilderApp
-        run: |
-          git config --global user.email "flakebuilderapp[bot]@users.noreply.github.com"
-          git config --global user.name "flakebuilderapp[bot]"
-          echo "Git user configured: $(git config --global user.name) <$(git config --global user.email)>"
-
       - name: Create Pull Request
         if: steps.check-zed-version.outputs.update_needed == 'true'
         id: create_pr
-        uses: peter-evans/create-pull-request@v6
-        with:
-          token: ${{ steps.generate_token.outputs.token }}
-          commit-message: "chore: update Zed Editor packages"
-          author: "flakebuilderapp[bot] <flakebuilderapp[bot]@users.noreply.github.com>"
-          committer: "flakebuilderapp[bot] <flakebuilderapp[bot]@users.noreply.github.com>"
-          branch: update-zed-editor-packages
-          delete-branch: true
-          labels: automated, zed-update
-          title: "Update Zed Editor packages"
-          body: ${{ steps.pr-body.outputs.pr_body }} # Use the generated body
-
-      - name: Set the PR to automerge
-        if: steps.create_pr.outputs.pull-request-operation == 'created'
-        uses: peter-evans/enable-pull-request-automerge@v3
-        with:
-          token: ${{ secrets.REPO_ACCESS_TOKEN }} # This should be a token with permissions to manage PRs and enable automerge
-          pull-request-number: ${{ steps.create_pr.outputs.pull-request-number }}
-          merge-method: "squash"
+        run: |
+          git add .
+          git commit -m "chore: update Zed Editor packages'
+          gh pr create -B main -H update-zed-editor-packages --title 'Update Zed Editor packages' --body '${{ steps.pr-body.outputs.pr_body }}'
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

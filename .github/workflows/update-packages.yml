@@ -369,7 +369,7 @@ jobs:
         id: create_pr
         run: |
           git add .
-          git commit -m "chore: update Zed Editor packages'
+          git commit -m 'chore: update Zed Editor packages'
           gh pr create -B main -H update-zed-editor-packages --title 'Update Zed Editor packages' --body '${{ steps.pr-body.outputs.pr_body }}'
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

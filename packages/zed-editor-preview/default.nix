@@ -98,7 +98,7 @@ let
 in
 rustPlatform.buildRustPackage (finalAttrs: {
   pname = "zed-editor";
-  version = "0.209.1-pre";
+  version = "0.209.2-pre";
 
   outputs = [
     "out"
@@ -111,7 +111,7 @@ rustPlatform.buildRustPackage (finalAttrs: {
     owner = "zed-industries";
     repo = "zed";
     tag = "v${finalAttrs.version}";
-    hash = "sha256-GDTkAuU/iocibVH7h2MBrdwc++I6VQqs3EgWay502DM=";
+    hash = "sha256-H6egqg5hdN+140WE0hrKm6B5hNGzAjzgYvEpgNwxSPU=";
   };
 
   patches = [
@@ -138,7 +138,7 @@ rustPlatform.buildRustPackage (finalAttrs: {
     '';
 
   # useFetchCargoVendor = true;
-  cargoHash = "sha256-VsvZ3qhhzbcmJ0nqfemDnsmcXydJFM1NBJFgWbQyPT8=";
+  cargoHash = "sha256-qLCO6DNHmyYtfbQKsm56SgvleiuJrkEtzzQ25gHGNCY=";
 
   nativeBuildInputs = [
     cmake
